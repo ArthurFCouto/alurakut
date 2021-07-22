@@ -1,7 +1,7 @@
 import MainGrid from './../src/components/MainGrid';
 import Box from './../src/components/Box';
 import { AlurakutMenu, OrkutNostalgicIconSet } from './../src/lib/AlurakutCommons';
-import { Profilerelations } from './../src/components/ProfileRelations';
+import { ProfileRelationsBoxWrapper } from './../src/components/ProfileRelations';
 
 export default function Home() {
   const gitHubUser = 'arthurfcouto';
@@ -39,7 +39,7 @@ export default function Home() {
           </Box>
         </div>
         <div className="profileRelationArea" style={{gridArea: 'profileRelationArea'}}>
-          <Profilerelations>
+          <ProfileRelationsBoxWrapper>
             <h2 className="smallTitle">
               Pessoas da área ({pessoasFavoritas.length}) 
             </h2>
@@ -54,7 +54,7 @@ export default function Home() {
                 </li>
               )}) /*Usa-se o método map porque ele transforma uma Array, enquanto o foreach apenas percorre. O método map sempre vai retornar a mesma quantidade de objetos do array */ }
             </ul>
-          </Profilerelations>
+          </ProfileRelationsBoxWrapper>
         </div>
       </MainGrid>
     </>
