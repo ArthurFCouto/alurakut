@@ -1,13 +1,17 @@
 import React from 'react';
 import MainGrid from './../src/components/MainGrid';
 import Box from './../src/components/Box';
+import jwt from 'jsonwebtoken';
+import nookies from 'nookies';
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from './../src/lib/AlurakutCommons';
 import { ProfileRelationsBoxWrapper } from './../src/components/ProfileRelations';
 
-export default function Home() {
+export default function Home(props) {
 
   const token = '885021727ca3f1b4708b911ec910be'
-  const gitHubUser = `arthurfcouto`;
+  const gitHubUser = props.githubUser;
+  const pessoasFavoritas = props.pessoasFavoritas; 
+  const seguidores = props.followers;
 
   const [comunidadesFavoritas, setComunidadesFavoritas] = React.useState([]); /*React.useState([{
     id: new Date().toISOString(),
@@ -15,26 +19,7 @@ export default function Home() {
     image: `https://img10.orkut.br.com/community/52cc4290facd7fa700b897d8a1dc80aa.jpg`
   }]);*/ //Criando uma comunidade padrão com no mínimo este elemento
 
-  const pessoasFavoritas = [
-    'juunegreiros',
-    'omariosouto',
-    'peas',
-    'rafaballerini',
-    'marcobrunodev',
-    'felipefialho',
-  ] //Criando um Array com os usuários já pré-definidos
-
-  const [seguidores, setSeguidores] = React.useState([]);
-
   React.useEffect(function(){
-    //fetch com método GET
-    fetch(`https://api.github.com/users/${gitHubUser}/followers`)
-    .then(function (respostaDoServidor) { //Neste primeiro then recebemos a resposta e convertemos em Json
-      return respostaDoServidor.json();
-    })
-    .then(function (respostaConvertida) { //Neste segundo then, ele será executado depois que o primeiro estiver pronto, dai sim setamos a resposta convertida
-      setSeguidores(respostaConvertida);
-    })
 
     //Fazendo requisição em graphql
     fetch(`https://graphql.datocms.com/`, {
@@ -55,8 +40,8 @@ export default function Home() {
     })
     .then((response) => response.json())
     .then((responseFull) => {
-      const comunidade = responseFull.data.allCommunities;
-      setComunidadesFavoritas(comunidade);
+      const comunidadeAux = responseFull.data.allCommunities;
+      setComunidadesFavoritas(comunidadeAux);
     })
   }, []); //O useEffect é um interceptador de mudanças na execução, passamos uma array vazia como parâmetro para que ele seja executado apenas uma vez.
 
@@ -84,15 +69,16 @@ export default function Home() {
           {props.title} ({props.itens.length}) 
         </h2>
         <ul>
-        {/*pessoasFavoritas.map((itemAtual) => {
-          return (
-            <li key={itemAtual}>
-              <a href={`/users/${itemAtual}`}>
-                <img src={`https://github.com/${itemAtual}.png`} />
-                <span>{itemAtual}</span>
-              </a>
-            </li>
-          )})*/}
+          {props.itens.slice(0,6).map((itemAtual) => {
+            return (
+              <li key={itemAtual.id}>
+                <a href={`https://github.com/${itemAtual.name}`} target='_blank'>
+                  <img src={`${itemAtual.image}`} />
+                  <span>{itemAtual.name}</span>
+                </a>
+              </li>
+            )}
+            )}
         </ul>
       </ProfileRelationsBoxWrapper>
     )
@@ -130,7 +116,7 @@ export default function Home() {
                 imagemUrl: dadosDoForm.get('imagemUrl'),
                 creatorSlug: dadosDoForm.get('creatorSlug')
               }
-              console.log(comunidade); //Exibindo o objeto criado a partir dos dados do formulário
+              //console.log(comunidade); //Exibindo o objeto criado a partir dos dados do formulário
               fetch('/api/comunidades', {
                 method: 'POST',
                 headers: {
@@ -141,7 +127,6 @@ export default function Home() {
               .then(async (response) => {
                 const dados = await response.json();
                 const comunidadeAux = dados.registroCreate;
-                console.log(comunidadeAux);
                 const comunidadesAtualizadas = [... comunidadesFavoritas, comunidadeAux]; //Criando uma nova constante onde, adiciono dos dados do array antigo e somo com o novo
                 setComunidadesFavoritas(comunidadesAtualizadas);
               })
@@ -183,10 +168,10 @@ export default function Home() {
               Comunidades ({comunidadesFavoritas.length}) {/*Quantidade de comunidades salvas no array*/}
             </h2>
             <ul>
-            {comunidadesFavoritas.slice(0,6).map((itemAtual) => { //Percorrendo todas as comunidades e passando uma a uma no map
+            { comunidadesFavoritas.slice(0,6).map((itemAtual) => { //Percorrendo todas as comunidades e passando uma a uma no map
               return (
                 <li  key={itemAtual.id}> {/*Chave para identificar em qual comunidade estou (deve ser única)*/}
-                  <a href={`#/users/${itemAtual.id}`}>
+                  <a href={`#/${itemAtual.id}`}>
                     <img src={`${itemAtual.imagemUrl}`} />
                     <span>{itemAtual.title}</span>
                   </a>
@@ -194,24 +179,78 @@ export default function Home() {
               )}) /*Usa-se o método map porque ele transforma uma Array, enquanto o foreach apenas percorre. O método map sempre vai retornar a mesma quantidade de objetos do array */ }
             </ul>
           </ProfileRelationsBoxWrapper>
-          <ProfileRelationsBoxWrapper>
-            <h2 className="smallTitle">
-              Pessoas da área ({pessoasFavoritas.length}) 
-            </h2>
-            <ul>
-            {pessoasFavoritas.slice(0,6).map((itemAtual) => {
-              return (
-                <li key={itemAtual}>
-                  <a href={`https://github.com/${itemAtual}`}>
-                    <img src={`https://github.com/${itemAtual}.png`} />
-                    <span>{itemAtual}</span>
-                  </a>
-                </li>
-              )})}
-            </ul>
-          </ProfileRelationsBoxWrapper>
+          <ProfileRelationsBox title="Pessoas que segue" itens={pessoasFavoritas}/>
         </div>
       </MainGrid>
     </>
   )
+}
+
+export async function getServerSideProps(ctx) { //Esta função é executada antes de renderizar o código HTML da página, não é exibida informações ao usuário, e é muito utilizada para validações
+  const cookies = nookies.get(ctx); //Acessando os cookies salvos na página de login
+  const token = cookies.USER_TOKEN; //Acessando o token salvo no cookie
+  const decodedToken = jwt.decode(token); //Decodificando o token para acessar as informações salvas no token
+  const githubUser = decodedToken?.githubUser; //Acessando o objeto decodificado, e pegando a informação do githubUser
+
+  const { message } = await fetch(`https://api.github.com/users/${githubUser}`)
+  .then((response) => response.json())
+
+  if (!githubUser || message === "Not Found") {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    }
+  }
+
+  //fetch com método GET
+  //const followers = await fetch(`https://api.github.com/users/${githubUser}/followers`)
+  //.then(function (respostaDoServidor) { //Neste primeiro then recebemos a resposta e convertemos em Json
+  //  return respostaDoServidor.json();
+  //})
+  //.then(function (respostaConvertida) { //Neste segundo then, ele será executado depois que o primeiro estiver pronto, dai sim setamos a resposta convertida
+    //setSeguidores(respostaConvertida);
+  //  console.log(respostaDoServidor);
+  //  return respostaConvertida.map((itemAtual) => ({
+  //    id: itemAtual.id,
+  //    name: itemAtual.login,
+  //    image: itemAtual.avatar_url,
+  //  }))
+  //})
+
+  const followers = await fetch(`https://api.github.com/users/${githubUser}/followers`)
+    .then((res) => res.json())
+    .then((resJson) => resJson.map((follower) => ({
+      id: follower.id,
+      name: follower.login,
+      image: follower.avatar_url,
+      })
+    ));
+
+  const pessoasFavoritas = await fetch(`https://api.github.com/users/${githubUser}/following`)
+  .then((res) => res.json())
+  .then((resJson) => resJson.map((follower) => ({
+    id: follower.id,
+    name: follower.login,
+    image: follower.avatar_url,
+    })
+  ));
+
+  /*const pessoasFavoritas = [
+    'juunegreiros',
+    'omariosouto',
+    'peas',
+    'rafaballerini',
+    'marcobrunodev',
+    'felipefialho',
+  ];*/ //Criando um Array com os usuários já pré-definidos
+
+  return {
+    props: {
+      githubUser,
+      pessoasFavoritas,
+      followers
+    }
+  }
 }
