@@ -1,27 +1,15 @@
 import React from 'react';
 import { useRouter } from 'next/router';
-import jwt from 'jsonwebtoken';
 import nookies from 'nookies'; //Biblioteca para utilizar cookies
-
-async function message(githubUser){
-  const { message } = await fetch(`https://api.github.com/users/${githubUser}`)
-  .then((response) => response.json());
-  return message;
-}
 
 export default function LoginScreen() {
   const router = useRouter(); //Biblioteca do next para gerenciar rotas (URL)
   const [ gitHubUser, setGitHubUser ] = React.useState("");
 
-  const cookies = nookies.get(null, 'USER_TOKEN');
-  const token = cookies.USER_TOKEN; 
-  const decodedToken = jwt.decode(token); 
-  const githubUser = decodedToken?.githubUser;
-  let alert = "";
+  const [ alert, setAlert ] = React.useState("");
+  const [ color, setColor ] = React.useState("black");
 
-  if (!githubUser || message(githubUser) === "Not Found") {
-    alert = "Digite um usuário válido!";
-  }
+  nookies.destroy(null, 'USER_TOKEN');
 
   return (
     <main style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -35,11 +23,33 @@ export default function LoginScreen() {
         </section>
 
         <section className="formArea">
-          <form className="box" onSubmit={(infosDoEvento) => {
+          <form className="box" onSubmit={ async (infosDoEvento) => {
                 infosDoEvento.preventDefault(); //Evitando recarregar a página após o onSubmit
-                alert = "Validando usuário";
+                setColor("black");
+                //Um alerta para o usuário, irá aparecer abaixo do campo de login
+                setAlert("Validando usuário...");
+                //Validando se o usuário não deixou o campo em branco
+                if(gitHubUser.trim().length === 0) {
+                  setColor("red");
+                  setAlert("Digite um usuário!");
+                  return
+                }
 
-                //Função para verificar se o usuário existe
+                //Verificando se o usuário existe
+                const { message } = await fetch(`https://api.github.com/users/${gitHubUser}`)
+                .then((response) => response.json());
+                //Caso o usuário não exista, informaremos ao usuário *O return é para já encerrarmos a função por aqui
+                if(message === "Not Found") {
+                  setColor("red");
+                  setAlert("Digite um usuário válido!");
+                  setGitHubUser("");
+                  return
+                } else {
+                  setColor("black");
+                  setAlert("Redirecionando...");
+                }
+
+                //Função para logar o usuário, salvar as informações em cookies e redirecionar
                 fetch('https://alurakut.vercel.app/api/login', {
                     method: 'POST',
                     headers: {
@@ -68,15 +78,11 @@ export default function LoginScreen() {
                     setGitHubUser(evento.target.value) //Estamos setando no gitHubUser os valores digitados pelo usuário
                 }}
             />
-            <button onclick={
-              gitHubUser.length === 0
-                ? null
-                : true
-            } type="submit">
+            <button type="submit">
               Login
             </button>
             <p>
-              <strong >{alert}</strong>
+              <strong style={{color: color}}>{alert}</strong>
           </p>
           </form>
 

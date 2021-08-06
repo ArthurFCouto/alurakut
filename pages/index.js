@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import nookies from 'nookies';
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from './../src/lib/AlurakutCommons';
 import { ProfileRelationsBoxWrapper } from './../src/components/ProfileRelations';
+import { tokenFull } from './api/comunidades'
 
 export default function Home(props) {
 
@@ -20,7 +21,10 @@ export default function Home(props) {
   }]);*/ //Criando uma comunidade padrão com no mínimo este elemento
 
   React.useEffect(function(){
+    preencherCommunity();    
+  }, []); //O useEffect é um interceptador de mudanças na execução, passamos uma array vazia como parâmetro para que ele seja executado apenas uma vez.
 
+  function preencherCommunity() {
     //Fazendo requisição em graphql
     fetch(`https://graphql.datocms.com/`, {
       method: 'POST',
@@ -43,7 +47,7 @@ export default function Home(props) {
       const comunidadeAux = responseFull.data.allCommunities;
       setComunidadesFavoritas(comunidadeAux);
     })
-  }, []); //O useEffect é um interceptador de mudanças na execução, passamos uma array vazia como parâmetro para que ele seja executado apenas uma vez.
+  }
 
   function ProfileSlideBar(props) { //Esta função esta recebendo propriedades (props)
     return (
@@ -170,9 +174,21 @@ export default function Home(props) {
             <ul>
             { comunidadesFavoritas.slice(0,6).map((itemAtual) => { //Percorrendo todas as comunidades e passando uma a uma no map
               return (
-                <li  key={itemAtual.id}> {/*Chave para identificar em qual comunidade estou (deve ser única)*/}
+                <li  key={itemAtual.id} onClick={ function deleteCommunity() {
+                  const SiteClient = require('datocms-client').SiteClient;
+                  const client = new SiteClient(tokenFull);
+                  const itemId = itemAtual.id;
+                  client.items.destroy(itemId)
+                  .then((item) => {
+                    //console.log(item);
+                    preencherCommunity();
+                  })
+                  .catch((error) => {
+                    console.error(error);
+                  });
+                }}> {/*Chave para identificar em qual comunidade estou (deve ser única)*/}
                   <a href={`#/${itemAtual.id}`}>
-                    <img src={`${itemAtual.imagemUrl}`} />
+                    <img src={`${itemAtual.imagemUrl}`} title="Clique na foto para deletar."/>
                     <span>{itemAtual.title}</span>
                   </a>
                 </li>
@@ -192,10 +208,7 @@ export async function getServerSideProps(ctx) { //Esta função é executada ant
   const decodedToken = jwt.decode(token); //Decodificando o token para acessar as informações salvas no token
   const githubUser = decodedToken?.githubUser; //Acessando o objeto decodificado, e pegando a informação do githubUser
 
-  const { message } = await fetch(`https://api.github.com/users/${githubUser}`)
-  .then((response) => response.json())
-
-  if (!githubUser || message === "Not Found") {
+  if (!githubUser) {
     return {
       redirect: {
         destination: '/login',

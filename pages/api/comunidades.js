@@ -1,9 +1,11 @@
 import { SiteClient } from "datocms-client"
 
+export const tokenFull = "feea6da15483fb2658c62a04a012ad";
+
 //Todos os dados criados aqui não ficam visíveis ao front, não são exibidos em nenhuma parte no navegador
 export default async function comunidadesApi(request, response) {
     if(request.method === 'POST') {
-        const token = "feea6da15483fb2658c62a04a012ad";
+        const token = tokenFull;
         const client = new SiteClient(token);
         //Sempre validar os dados antes de cadastrar
         const registroCreate = await client.items.create({
